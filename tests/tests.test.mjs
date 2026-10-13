@@ -775,6 +775,43 @@ describe('source_map', () => {
 
     assert.equal(JSON.parse(map).file, `${TEST_MODULE_NAME}/${TEST_MODULE_PATH}`)
   })
+
+  test('embeds the original source', () => {
+    const code = 'async function fetch (url) { return 42; }\nmodule.exports = { fetch };'
+
+    const instrumentor = create([
+      {
+        channelName: 'fetch_sm',
+        module: { name: TEST_MODULE_NAME, versionRange: '>=0.0.1', filePath: TEST_MODULE_PATH },
+        functionQuery: { functionName: 'fetch', kind: 'Async' },
+      },
+    ])
+    const transformer = instrumentor.getTransformer(TEST_MODULE_NAME, TEST_MODULE_VERSION, TEST_MODULE_PATH)
+    const { map } = transformer.transform(code, 'cjs')
+
+    const { sources, sourcesContent } = JSON.parse(map)
+    assert.deepEqual(sources, [`${TEST_MODULE_NAME}/${TEST_MODULE_PATH}`])
+    assert.deepEqual(sourcesContent, [code])
+  })
+
+  test('uses `sourceFile` as the source name', () => {
+    const code = 'async function fetch (url) { return 42; }\nmodule.exports = { fetch };'
+    const sourceFile = `/app/node_modules/${TEST_MODULE_NAME}/${TEST_MODULE_PATH}`
+
+    const instrumentor = create([
+      {
+        channelName: 'fetch_sm',
+        module: { name: TEST_MODULE_NAME, versionRange: '>=0.0.1', filePath: TEST_MODULE_PATH },
+        functionQuery: { functionName: 'fetch', kind: 'Async' },
+      },
+    ])
+    const transformer = instrumentor.getTransformer(TEST_MODULE_NAME, TEST_MODULE_VERSION, TEST_MODULE_PATH)
+    const { map } = transformer.transform(code, 'cjs', null, { sourceFile })
+
+    const { sources, sourcesContent } = JSON.parse(map)
+    assert.deepEqual(sources, [sourceFile])
+    assert.deepEqual(sourcesContent, [code])
+  })
 })
 
 describe('wrap_promise_non_promise', () => {
